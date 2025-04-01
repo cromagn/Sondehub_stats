@@ -15,7 +15,7 @@ library(gridExtra)
 library(grid)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial <- "V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <- "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
 data_save_path <-"c:\\tools\\"
 saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
@@ -34,8 +34,6 @@ geo_to_cartesian <- function(lat, lon, alt) {
   return(c(x, y, z))
 }
 
-
-
 # bearing 
 calculate_bearing <- function(lat1, lon1, lat2, lon2) {
   lat1_rad <- lat1 * pi / 180
@@ -53,11 +51,9 @@ calculate_bearing <- function(lat1, lon1, lat2, lon2) {
 
 #Load data from http://api.v2.sondehub.org/sonde/V4730886
 #"V4650263" #V4730127"
-#df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\response_1742754443626.json")
-#df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\V4730885.json")
-#df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\DFM-23009528.json")
+
 #df <-fromJSON(paste0("http://api.v2.sondehub.org/sonde/",sonda_serial))
-#df <- fromJSON(paste0("C:\\Users\\cromagnoli\\Downloads\\",sonda_serial,".json"))
+#df <- fromJSON(paste0("C:\\Users\\xxx\\Downloads\\",sonda_serial,".json"))
 
 # Read from SondeHub
 url <- paste0("http://api.v2.sondehub.org/sonde/",sonda_serial)
@@ -89,7 +85,7 @@ uploader_lon <- as.numeric(coords[2])
 
 #  Uploader to XYZ 3D
 uploader_xyz <- geo_to_cartesian(uploader_lat, uploader_lon, uploader_alt)
-head(df$datetime)
+#head(df$datetime)
 
 # Distance, elevation and bearing (to be optimized)
 df <- df %>%
