@@ -15,7 +15,7 @@ library(gridExtra)
 library(grid)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial <- "W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <- "V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
 data_save_path <-"c:\\tools\\"
 saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
