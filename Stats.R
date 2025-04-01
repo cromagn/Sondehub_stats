@@ -15,15 +15,16 @@ library(gridExtra)
 library(grid)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial = "W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <- "W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+data_save_path <-"c:\\tools\\"
+saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
 uploader_lon <- 0     # Do not valorize
-#uploader_lat <- 45.2000    # Latitudine di Villanterio
-#uploader_lon <- 9.3500     # Longitudine di Villanterio
+
 uploader_alt <- 75
 R <- 6371000  
 
-# Funzione per convertire lat/lon/alt in coordinate cartesiane (X, Y, Z)
+#  lat/lon/alt to (X, Y, Z)
 geo_to_cartesian <- function(lat, lon, alt) {
   lat_rad <- lat * pi / 180
   lon_rad <- lon * pi / 180
@@ -50,12 +51,24 @@ calculate_bearing <- function(lat1, lon1, lat2, lon2) {
   return(bearing_deg)
 }
 
-#Importare i file da http://api.v2.sondehub.org/sonde/V4730886
+#Load data from http://api.v2.sondehub.org/sonde/V4730886
 #"V4650263" #V4730127"
 #df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\response_1742754443626.json")
 #df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\V4730885.json")
 #df <- fromJSON("C:\\Users\\cromagnoli\\Downloads\\DFM-23009528.json")
-df <- fromJSON(paste0("C:\\Users\\cromagnoli\\Downloads\\",sonda_serial,".json"))
+#df <-fromJSON(paste0("http://api.v2.sondehub.org/sonde/",sonda_serial))
+#df <- fromJSON(paste0("C:\\Users\\cromagnoli\\Downloads\\",sonda_serial,".json"))
+
+# Read from SondeHub
+url <- paste0("http://api.v2.sondehub.org/sonde/",sonda_serial)
+destfile <- paste0(data_save_path,sonda_serial)
+
+# Download
+download.file(url, destfile, mode = "wb")
+
+# Read and (decomp) JSON
+df <- fromJSON(gzfile(destfile))
+
 # Housekeeping del dato (Se serve)
 # df$humidity <- as.numeric(df$humidity)
 # df$lat <- as.numeric(df$lat)
@@ -74,25 +87,25 @@ coords <- strsplit(first(dfloc$uploader_position), ",")[[1]]
 uploader_lat <- as.numeric(coords[1])
 uploader_lon <- as.numeric(coords[2])
 
-# Convertiamo Uploader in 3D
+#  Uploader to XYZ 3D
 uploader_xyz <- geo_to_cartesian(uploader_lat, uploader_lon, uploader_alt)
 head(df$datetime)
 
-# Calcolo della distanza in linea d'aria, dell'angolo di elevazione e del bearing
+# Distance, elevation and bearing (to be optimized)
 df <- df %>%
   rowwise() %>%
   mutate(
-    sonda_xyz = list(geo_to_cartesian(lat, lon, alt)),  # Convertiamo in coordinate 3D
-    distance_3d = sqrt(sum((unlist(sonda_xyz) - uploader_xyz)^2)) / 1000,  # Distanza in km
-    height_diff = alt - uploader_alt,  # Differenza di altitudine
-    elevation_angle = atan(height_diff / sqrt(sum((unlist(sonda_xyz)[1:2] - uploader_xyz[1:2])^2))) * (180 / pi),  # Angolo di elevazione
+    sonda_xyz = list(geo_to_cartesian(lat, lon, alt)),  # Coord 3D
+    distance_3d = sqrt(sum((unlist(sonda_xyz) - uploader_xyz)^2)) / 1000,  # Distance in km
+    height_diff = alt - uploader_alt,  # Sonde to  uploader altitude
+    elevation_angle = atan(height_diff / sqrt(sum((unlist(sonda_xyz)[1:2] - uploader_xyz[1:2])^2))) * (180 / pi),  # Elevation angle
     bearing = calculate_bearing(uploader_lat, uploader_lon, lat, lon)  #  bearing
   )
 
 dfmio <- df[df$uploader_callsign ==receiving_station,]
-
-
-################## Grafici semplici
+df_unique <- df[!duplicated(df[, c("bearing", "distance_3d","elevation_angle")]), ]
+df$bearing
+################## Simple plot
 p_bsnr_solo<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
   #geom_point(aes(size = ifelse(uploader_callsign ==receiving_station, 5, 2))) +
   geom_point(size=1.1,alpha = 0.15) +
@@ -101,9 +114,10 @@ p_bsnr_solo<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
                      limits = c(0, 360),
                      breaks = 0:3 * 90) +
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(dfmio$distance_3d))) +
-  theme_minimal() +coord_radial(r_axis_inside = TRUE) +
+  theme_minimal() +coord_radial(r.axis.inside = TRUE) +
   ggtitle(paste(sonda_serial, "- Bearing vs SNR"))+
   labs(x = "Bearing", y="Distance (km)")
+
 
 p_esnr_solo<-ggplot(dfmio, aes(x = 90 -elevation_angle, y = distance_3d, color = snr)) +
   scale_x_continuous(expand = expansion(0, 0), 
@@ -118,14 +132,14 @@ p_esnr_solo<-ggplot(dfmio, aes(x = 90 -elevation_angle, y = distance_3d, color =
   ggtitle(paste(sonda_serial,"- Elevation vs. SNR"))+
   labs(x = "Elevation", y="Distance (km)")
 
-# per comparativa
+# Comparative plot
 
 p_btp<-ggplot(df, aes(x = bearing, y = distance_3d)) +
   geom_point(size=0.1,alpha = 0.15) +
   scale_x_continuous(expand = expansion(0, 0), 
                      limits = c(0, 360),
                      breaks = 0:3 * 90) +
-  geom_point(size=1.1,alpha = 0.15) +
+  geom_point(size=0.8,alpha = 0.15) +
   #scale_color_gradient(low = "blue", high = "red") + 
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +
   theme_minimal() +coord_radial(r.axis.inside = TRUE) +
@@ -167,7 +181,7 @@ p_etp <- ggplot(df, aes(x = 90 -elevation_angle, y = distance_3d)) +
                      limits = c(0, 90),
                      breaks = 0:1 * 90,
                      label = c("90", "0")) +
-  geom_point(size=1.1,alpha = 0.15) +
+  geom_point(size=0.8,alpha = 0.15) +
   #scale_color_gradient(low = "blue", high = "red") + 
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +  
   coord_radial(start = 0, end = 0.5 * pi) +
@@ -184,6 +198,27 @@ grid.lines(x = c(0.5, 0.5), y = c(0.05, 0.95),
 grid.lines(x = c(0.05, 0.95), y = c(0.48, 0.48), 
            gp = gpar(col = "black", lwd = 1, lty = "dotted", alpha = 0.5))
 
+
+# save plot
+if (saveallimages=="Y") {
+  png(paste0(data_save_path,"p_comparative_",sonda_serial,".png"), width = 6, height = 6, units = "in", res = 300)
+  
+  grid.newpage()  
+  multi_plot <- grid.arrange(p_bsnr, p_btp, p_esnr, p_etp, ncol = 2, 
+                             top = paste("Flight of sonde", sonda_serial, "seen by", receiving_station))
+  
+  grid.lines(x = c(0.5, 0.5), y = c(0.05, 0.95), 
+             gp = gpar(col = "black", lwd = 1, lty = "dotted", alpha = 0.5))
+  grid.lines(x = c(0.05, 0.95), y = c(0.48, 0.48), 
+             gp = gpar(col = "black", lwd = 1, lty = "dotted", alpha = 0.5))
+  
+  dev.off()
+  ggsave(paste0(data_save_path,"p_bsnr_solo_",sonda_serial,".png"), plot = p_bsnr_solo, width = 6, height = 6, dpi = 300, bg="white")
+  ggsave(paste0(data_save_path,"p_esnr_solo_",sonda_serial,".png"), plot = p_esnr_solo, width = 6, height = 6, dpi = 300, bg="white")
+  
+}
+
+# Interactive plot
 
 fig <- plot_ly(dfmio, 
                r = ~distance_3d,  
@@ -258,6 +293,8 @@ fig <- fig %>%
   )
 
 fig
+########################
+# Just test do not use #
 ########################
 ggplot(dfmio, aes(x = bearing, y = distanza_3d, color = snr)) +
   geom_point(size = 3) +
@@ -569,5 +606,3 @@ p<-ggplot(dfmio, aes(x = bearing, y = distance_3d)) +
   scale_y_continuous(expand = expansion(c(0, 0.05)))
 
 p + coord_radial()
-
-
