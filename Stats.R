@@ -13,9 +13,10 @@ library(geosphere)
 library(cowplot)
 library(gridExtra)
 library(grid)
+library(akima)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial <- "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <-"U4254193"#W2020122"#U4254208"#W2020129"#W2020386"#W2120298"#U4254496"#"W2020556"#U4245119"#U4254151"#W2120304"#V4640033"#V4730900"#U4245042"#W4140324"#V4650798"#W2020563"#W2020560"#U4254210"#S2411020"#W2020559"#W2120297"#23009534" #U4254227" #W2120304" #W2030077"# "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
 data_save_path <-"c:\\tools\\"
 saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
@@ -100,7 +101,10 @@ df <- df %>%
 
 dfmio <- df[df$uploader_callsign ==receiving_station,]
 df_unique <- df[!duplicated(df[, c("bearing", "distance_3d","elevation_angle")]), ]
-df$bearing
+
+# Differentiate first and last point 
+first_point <- df[which.min(as.POSIXct(df$time_received,format="%Y-%m-%dT%H:%M:%OSZ", tz="UTC")), ]
+last_point  <- df[which.max(as.POSIXct(df$time_received,format="%Y-%m-%dT%H:%M:%OSZ", tz="UTC")), ]
 ################## Simple plot
 p_bsnr_solo<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
   #geom_point(aes(size = ifelse(uploader_callsign ==receiving_station, 5, 2))) +
@@ -136,6 +140,12 @@ p_btp<-ggplot(df, aes(x = bearing, y = distance_3d)) +
                      limits = c(0, 360),
                      breaks = 0:3 * 90) +
   geom_point(size=0.8,alpha = 0.15) +
+  # Punto iniziale
+  geom_point(data = first_point, aes(x = bearing, y = distance_3d),color = "green", size = 3, shape = 1) +  # shape 17 = triangolo
+  geom_text(data = first_point,aes(x = bearing, y = distance_3d, label = "T"),vjust = -1, fontface = "bold", size = 2, color = "black") +
+  # Punto finale
+  geom_point(data = last_point, aes(x = bearing, y = distance_3d),color = "red", size = 3, shape = 3) +
+  geom_text(data = last_point,aes(x = bearing, y = distance_3d, label = "L"),vjust = -1, size = 2, color = "black") +
   #scale_color_gradient(low = "blue", high = "red") + 
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +
   theme_minimal() +coord_radial(r.axis.inside = TRUE) +
@@ -178,6 +188,12 @@ p_etp <- ggplot(df, aes(x = 90 -elevation_angle, y = distance_3d)) +
                      breaks = 0:1 * 90,
                      label = c("90", "0")) +
   geom_point(size=0.8,alpha = 0.15) +
+  # Punto iniziale
+  geom_point(data = first_point, aes(x =  90 -elevation_angle, y = distance_3d),color = "green", size = 3, shape = 1) +  # shape 17 = triangolo
+  geom_text(data = first_point,aes(x =  90 -elevation_angle, y = distance_3d, label = "T"),vjust = -1, fontface = "bold", size = 2, color = "black") +
+  # Punto finale
+  geom_point(data = last_point, aes(x =  90 -elevation_angle, y = distance_3d),color = "red", size = 3, shape = 3) +
+  geom_text(data = last_point,aes(x =  90 -elevation_angle, y = distance_3d, label = "L"),vjust = -1, size = 2, color = "black") +
   #scale_color_gradient(low = "blue", high = "red") + 
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +  
   coord_radial(start = 0, end = 0.5 * pi) +
@@ -602,3 +618,38 @@ p<-ggplot(dfmio, aes(x = bearing, y = distance_3d)) +
   scale_y_continuous(expand = expansion(c(0, 0.05)))
 
 p + coord_radial()
+
+
+ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
+  #geom_point(aes(size = ifelse(uploader_callsign ==receiving_station, 5, 2))) +
+  geom_point(size=1.1,alpha = 0.15) +
+  geom_contour(aes(x = bearing, y = distance_3d, z = snr), colour="black") +
+  scale_color_gradient(low = "blue", high = "red") +  
+  scale_x_continuous(expand = expansion(0, 0), 
+                     limits = c(0, 360),
+                     breaks = 0:3 * 90) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(dfmio$distance_3d))) +
+  theme_minimal() +coord_radial(r.axis.inside = TRUE) +
+  ggtitle(paste(sonda_serial, "- Bearing vs SNR"))+
+  labs(x = "Bearing", y="Distance (km)")
+
+
+# contorni
+interp_data <- with(dfmio, interp(x = bearing, y = distance_3d, z = snr, duplicate = "mean"))
+
+interp_df <- as.data.frame(expand.grid(
+  x = interp_data$x,
+  y = interp_data$y
+))
+interp_df$z <- as.vector(interp_data$z)
+
+ggplot() +
+  geom_point(data = dfmio, aes(x = bearing, y = distance_3d, color = snr), size = 1.1, alpha = 0.15) +
+  geom_contour(data = interp_df, aes(x = x, y = y, z = z), colour = "black") +
+  scale_color_gradient(low = "blue", high = "red") +
+  scale_x_continuous(expand = expansion(0, 0), limits = c(0, 360), breaks = 0:3 * 90) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)), limits = c(0, max(dfmio$distance_3d))) +
+  theme_minimal() +
+  coord_radial(r.axis.inside = TRUE) +
+  ggtitle(paste(sonda_serial, "- Bearing vs SNR")) +
+  labs(x = "Bearing", y = "Distance (km)")
