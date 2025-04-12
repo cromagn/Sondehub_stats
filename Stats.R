@@ -16,7 +16,7 @@ library(grid)
 library(akima)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial <-"U4254193"#W2020122"#U4254208"#W2020129"#W2020386"#W2120298"#U4254496"#"W2020556"#U4245119"#U4254151"#W2120304"#V4640033"#V4730900"#U4245042"#W4140324"#V4650798"#W2020563"#W2020560"#U4254210"#S2411020"#W2020559"#W2120297"#23009534" #U4254227" #W2120304" #W2030077"# "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <-"W2020150"#U4254193"#W2020122"#U4254208"#W2020129"#W2020386"#W2120298"#U4254496"#"W2020556"#U4245119"#U4254151"#W2120304"#V4640033"#V4730900"#U4245042"#W4140324"#V4650798"#W2020563"#W2020560"#U4254210"#S2411020"#W2020559"#W2120297"#23009534" #U4254227" #W2120304" #W2030077"# "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
 data_save_path <-"c:\\tools\\"
 saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
@@ -105,6 +105,11 @@ df_unique <- df[!duplicated(df[, c("bearing", "distance_3d","elevation_angle")])
 # Differentiate first and last point 
 first_point <- df[which.min(as.POSIXct(df$time_received,format="%Y-%m-%dT%H:%M:%OSZ", tz="UTC")), ]
 last_point  <- df[which.max(as.POSIXct(df$time_received,format="%Y-%m-%dT%H:%M:%OSZ", tz="UTC")), ]
+
+special_points <- rbind(
+  data.frame(first_point, tipo = "Take-off", label = "T"),
+  data.frame(last_point, tipo = "Landing", label = "L")
+)
 ################## Simple plot
 p_bsnr_solo<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
   #geom_point(aes(size = ifelse(uploader_callsign ==receiving_station, 5, 2))) +
@@ -122,8 +127,8 @@ p_bsnr_solo<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
 p_esnr_solo<-ggplot(dfmio, aes(x = 90 -elevation_angle, y = distance_3d, color = snr)) +
   scale_x_continuous(expand = expansion(0, 0), 
                      limits = c(0, 90),
-                     breaks = 0:1 * 90,
-                     label = c("90", "0")) +
+                     breaks = 0:2 * 45,
+                     label = c("90","45", "0")) +
   geom_point(size=1.1,alpha = 0.15) +
   scale_color_gradient(low = "blue", high = "red") + 
   scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(dfmio$distance_3d))) +  
@@ -135,23 +140,51 @@ p_esnr_solo<-ggplot(dfmio, aes(x = 90 -elevation_angle, y = distance_3d, color =
 # Comparative plot
 
 p_btp<-ggplot(df, aes(x = bearing, y = distance_3d)) +
-  geom_point(size=0.1,alpha = 0.15) +
-  scale_x_continuous(expand = expansion(0, 0), 
-                     limits = c(0, 360),
-                     breaks = 0:3 * 90) +
-  geom_point(size=0.8,alpha = 0.15) +
-  # Punto iniziale
-  geom_point(data = first_point, aes(x = bearing, y = distance_3d),color = "green", size = 3, shape = 1) +  # shape 17 = triangolo
-  geom_text(data = first_point,aes(x = bearing, y = distance_3d, label = "T"),vjust = -1, fontface = "bold", size = 2, color = "black") +
-  # Punto finale
-  geom_point(data = last_point, aes(x = bearing, y = distance_3d),color = "red", size = 3, shape = 3) +
-  geom_text(data = last_point,aes(x = bearing, y = distance_3d, label = "L"),vjust = -1, size = 2, color = "black") +
-  #scale_color_gradient(low = "blue", high = "red") + 
-  scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +
-  theme_minimal() +coord_radial(r.axis.inside = TRUE) +
-  theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),axis.title.y = element_text(vjust = 1, margin = margin(r = 8)))+
-  ggtitle("Bearing full path")+
-  labs(x = "Bearing", y="Distance (km)")
+  
+  # Punti generali
+  geom_point(size = 0.8, alpha = 0.15) +
+  
+  # Punti speciali con legenda (forma + colore)
+  geom_point(data = special_points,
+             aes(x = bearing, y = distance_3d, shape = tipo, color = tipo),
+             size = 3) +
+  
+  # Etichette testuali "T" e "L"
+  geom_text(data = special_points,
+            aes(x = bearing, y = distance_3d, label = label),
+            vjust = -1, fontface = "bold", size = 2, color = "black") +
+  
+  # Scala per forma e colore con legenda
+  scale_shape_manual(values = c("Take-off" = 1, "Landing" = 3)) +
+  scale_color_manual(values = c("Take-off" = "green", "Landing" = "red")) +
+  
+  # Assi
+  scale_x_continuous(
+    expand = expansion(0, 0),
+    limits = c(0, 360),
+    breaks = 0:3 * 90
+  ) +
+  scale_y_continuous(
+    expand = expansion(c(0, 0.05)),
+    limits = c(0, max(df$distance_3d))
+  ) +
+  
+  # Tema, titolo, legenda
+  theme_minimal() +
+  coord_radial(r.axis.inside = TRUE) +
+  ggtitle("Bearing full path") +
+  labs(
+    x = "Bearing",
+    y = "Distance (km)",
+    shape = "Phase",
+    color = "Phase"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
+    axis.title.y = element_text(vjust = 1, margin = margin(r = 8)),
+    legend.title = element_text(size = 8),
+    legend.text = element_text(size = 8)
+  )
 
 p_bsnr<-ggplot(dfmio, aes(x = bearing, y = distance_3d, color = snr)) +
   #geom_point(aes(size = ifelse(uploader_callsign ==receiving_station, 5, 2))) +
@@ -182,25 +215,40 @@ p_esnr<-ggplot(dfmio, aes(x = 90 -elevation_angle, y = distance_3d, color = snr)
   guides(color = guide_colorbar(barwidth = 0.7))+
   labs(x = "Elevation", y="Distance (km)")
 
-p_etp <- ggplot(df, aes(x = 90 -elevation_angle, y = distance_3d)) +
+p_etp <- ggplot(df, aes(x = 90 - elevation_angle, y = distance_3d)) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  
+  # Aggiungi i due punti speciali con legenda
+  geom_point(data = special_points,
+             aes(x = 90 - elevation_angle, y = distance_3d, shape = tipo, color = tipo),
+             size = 3) +
+  
+  # Etichette testuali T e L
+  geom_text(data = special_points,
+            aes(x = pmax(0, 90 - elevation_angle), y = distance_3d, label = label),
+            vjust = -1, fontface = "bold", size = 2, color = "black") +
+  
+  # Imposta colori e forme manuali
+  scale_shape_manual(values = c("Take-off" = 1, "Landing" = 3)) +
+  scale_color_manual(values = c("Take-off" = "green", "Landing" = "red")) +
+  
   scale_x_continuous(expand = expansion(0, 0), 
                      limits = c(0, 90),
-                     breaks = 0:1 * 90,
-                     label = c("90", "0")) +
-  geom_point(size=0.8,alpha = 0.15) +
-  # Punto iniziale
-  geom_point(data = first_point, aes(x =  90 -elevation_angle, y = distance_3d),color = "green", size = 3, shape = 1) +  # shape 17 = triangolo
-  geom_text(data = first_point,aes(x =  90 -elevation_angle, y = distance_3d, label = "T"),vjust = -1, fontface = "bold", size = 2, color = "black") +
-  # Punto finale
-  geom_point(data = last_point, aes(x =  90 -elevation_angle, y = distance_3d),color = "red", size = 3, shape = 3) +
-  geom_text(data = last_point,aes(x =  90 -elevation_angle, y = distance_3d, label = "L"),vjust = -1, size = 2, color = "black") +
-  #scale_color_gradient(low = "blue", high = "red") + 
-  scale_y_continuous(expand = expansion(c(0, 0.05)),limits = c(0, max(df$distance_3d))) +  
+                     breaks = c(0, 90),
+                     labels = c("90", "0")) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)), 
+                     limits = c(0, max(df$distance_3d))) +
+  
   coord_radial(start = 0, end = 0.5 * pi) +
-  theme_minimal()+
-  theme(plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),axis.title.y = element_text(vjust = 1, margin = margin(r = 8)))+
-  ggtitle("Elevation full path")+
-  labs(x = "Elevation", y="Distance (km)")
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
+    axis.title.y = element_text(vjust = 1, margin = margin(r = 8)),
+    legend.title = element_text(size = 8),  # Riduce la dimensione del titolo della legenda
+    legend.text = element_text(size = 8)
+  )+
+  ggtitle("Elevation full path") +
+  labs(x = "Elevation", y = "Distance (km)", shape = "Phase", color = "Phase")
 
 
 grid.arrange(p_bsnr,p_btp,p_esnr, p_etp, ncol = 2,top=paste("Flight of sonde",sonda_serial,"seen by",receiving_station))
@@ -653,3 +701,43 @@ ggplot() +
   coord_radial(r.axis.inside = TRUE) +
   ggtitle(paste(sonda_serial, "- Bearing vs SNR")) +
   labs(x = "Bearing", y = "Distance (km)")
+
+special_points <- rbind(
+  data.frame(first_point, tipo = "Take-off", label = "T"),
+  data.frame(last_point, tipo = "Landing", label = "L")
+)
+
+ggplot(df, aes(x = 90 - elevation_angle, y = distance_3d)) +
+  geom_point(size = 0.8, alpha = 0.15) +
+  
+  # Aggiungi i due punti speciali con legenda
+  geom_point(data = special_points,
+             aes(x = 90 - elevation_angle, y = distance_3d, shape = tipo, color = tipo),
+             size = 3) +
+  
+  # Etichette testuali T e L
+  geom_text(data = special_points,
+            aes(x = pmax(0, 90 - elevation_angle), y = distance_3d, label = label),
+            vjust = -1, fontface = "bold", size = 2, color = "black") +
+  
+  # Imposta colori e forme manuali
+  scale_shape_manual(values = c("Take-off" = 1, "Landing" = 3)) +
+  scale_color_manual(values = c("Take-off" = "green", "Landing" = "red")) +
+  
+  scale_x_continuous(expand = expansion(0, 0), 
+                     limits = c(0, 90),
+                     breaks = c(0, 90),
+                     labels = c("90", "0")) +
+  scale_y_continuous(expand = expansion(c(0, 0.05)), 
+                     limits = c(0, max(df$distance_3d))) +
+  
+  coord_radial(start = 0, end = 0.5 * pi) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 10, face = "bold"),
+    axis.title.y = element_text(vjust = 1, margin = margin(r = 8)),
+    legend.title = element_text(size = 8),  # Riduce la dimensione del titolo della legenda
+    legend.text = element_text(size = 8)
+    )+
+  ggtitle("Elevation full path") +
+  labs(x = "Elevation", y = "Distance (km)", shape = "Flight phase", color = "Flight phase")
