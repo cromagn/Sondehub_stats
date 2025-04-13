@@ -16,7 +16,7 @@ library(grid)
 library(akima)
 
 receiving_station ="IU2KQB"   # Receiving station ID (uploader callsign) as registered on SondeHub
-sonda_serial <-"W2020150"#U4254193"#W2020122"#U4254208"#W2020129"#W2020386"#W2120298"#U4254496"#"W2020556"#U4245119"#U4254151"#W2120304"#V4640033"#V4730900"#U4245042"#W4140324"#V4650798"#W2020563"#W2020560"#U4254210"#S2411020"#W2020559"#W2120297"#23009534" #U4254227" #W2120304" #W2030077"# "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
+sonda_serial <-"W2020387"#U4254217"#W2020400"#W2020150"#U4254193"#W2020122"#U4254208"#W2020129"#W2020386"#W2120298"#U4254496"#"W2020556"#U4245119"#U4254151"#W2120304"#V4640033"#V4730900"#U4245042"#W4140324"#V4650798"#W2020563"#W2020560"#U4254210"#S2411020"#W2020559"#W2120297"#23009534" #U4254227" #W2120304" #W2030077"# "W2120303"#U4254246"#23009479"#V4730897"#U3320986"#W2350837"#V3440758"#V4730127"#U4254229"#W2030039"#"W4140233" #V3330922"#V4730127 #"W1950650"# V4730127" # V4730885"     # Target sonde
 data_save_path <-"c:\\tools\\"
 saveallimages <-"Y"
 uploader_lat <- 0    # Do not valorize
@@ -220,7 +220,7 @@ p_etp <- ggplot(df, aes(x = 90 - elevation_angle, y = distance_3d)) +
   
   # Aggiungi i due punti speciali con legenda
   geom_point(data = special_points,
-             aes(x = 90 - elevation_angle, y = distance_3d, shape = tipo, color = tipo),
+             aes(x = pmax(0, 90 - elevation_angle), y = distance_3d, shape = tipo, color = tipo),
              size = 3) +
   
   # Etichette testuali T e L
